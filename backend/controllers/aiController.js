@@ -1,7 +1,7 @@
-const axios = require('axios');
+const { GoogleGenAI } = require('@google/genai');
 
 /**
- * @desc    Analyze complaint using Gemini AI
+ * @desc    Analyze complaint using official Google GenAI SDK
  * @route   POST /api/ai/analyze
  * @access  Private
  */
@@ -34,23 +34,18 @@ Provide a JSON output ONLY with exactly these keys:
 Output valid JSON only. Do not wrap in markdown tags like \`\`\`json.
     `;
 
-    // Using OpenRouter API to access Gemini models with the provided sk-or-... key
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'meta-llama/llama-3.3-70b-instruct:free', // Using a valid free model to avoid 404 Not Found
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: "json_object" }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
-          'Content-Type': 'application/json'
+    // Initialize the official Google GenAI client
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
         }
-      }
-    );
+    });
 
-    const resultText = response.data.choices[0].message.content;
+    const resultText = response.text;
     
     let analysis;
     try {
@@ -66,6 +61,14 @@ Output valid JSON only. Do not wrap in markdown tags like \`\`\`json.
       data: analysis
     });
   } catch (error) {
+    if (error.response) {
+      if (error.response.status === 429) {
+        res.status(429);
+        return next(new Error("AI is currently busy (Rate Limit Exceeded). Please wait a few seconds and try again."));
+      }
+      res.status(error.response.status);
+      return next(new Error(`AI Service Error: ${error.response.data?.error?.message || error.message}`));
+    }
     next(error);
   }
 };
