@@ -38,7 +38,7 @@ Output valid JSON only. Do not wrap in markdown tags like \`\`\`json.
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.0-flash-exp:free', // Using a free model to avoid 402 Payment Required
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: "json_object" }
       },
